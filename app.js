@@ -121,6 +121,22 @@
   const PREFIX = "/scramjet/";
   const PROXIED_BASE = location.origin + PREFIX;
 
+  function withTimeout(promise, ms, message) {
+    return new Promise((resolveT, rejectT) => {
+      const timer = setTimeout(() => rejectT(new Error(message)), ms);
+      promise.then(
+        (v) => {
+          clearTimeout(timer);
+          resolveT(v);
+        },
+        (e) => {
+          clearTimeout(timer);
+          rejectT(e);
+        }
+      );
+    });
+  }
+
   async function bootEngine() {
     if (typeof BareMux === "undefined") {
       throw new Error("The BareMux script didn't load from /baremux/index.js.");
@@ -146,7 +162,11 @@
 
     const connection = new BareMux.BareMuxConnection("/baremux/worker.js");
     const wispUrl = (location.protocol === "https:" ? "wss" : "ws") + "://" + location.host + "/wisp/";
-    await connection.setTransport("/libcurl/index.mjs", [{ wisp: wispUrl }]);
+    await withTimeout(
+      connection.setTransport("/libcurl/index.mjs", [{ wisp: wispUrl }]),
+      15000,
+      "The connection worker didn't respond. Clear this site's data (padlock, then Site settings, then Delete data) and reload."
+    );
 
     const { ScramjetController } = $scramjetLoadController();
     scramjet = new ScramjetController({
@@ -157,7 +177,11 @@
         sync: "/scram/scramjet.sync.js",
       },
     });
-    await scramjet.init();
+    await withTimeout(
+      Promise.resolve(scramjet.init()),
+      15000,
+      "Scramjet didn't finish starting. Clear this site's data and reload."
+    );
   }
 
   function boot() {
