@@ -28,10 +28,13 @@ async function handleRequest(event) {
     }
   } catch (err) {
     console.error("[emnity] scramjet failed:", err);
+    const esc = (t) => String(t).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+    const detail = esc((err && (err.stack || err.message)) || err);
     return new Response(
-      "<body style=\"font-family:system-ui;background:#e6e8e8;text-align:center;padding-top:15vh\">" +
+      "<body style=\"font-family:system-ui;background:#e6e8e8;padding:8vh 6vw\">" +
         "<h2 style=\"color:#0d9488\">Emnity engine error</h2>" +
-        "<p>Scramjet couldn't load its settings. Clear this site's data and reload Emnity.</p></body>",
+        "<p>Send this text to whoever is fixing Emnity:</p>" +
+        "<pre style=\"white-space:pre-wrap;background:#fff;padding:14px;border-radius:12px\">" + detail + "</pre></body>",
       { status: 500, headers: { "content-type": "text/html; charset=utf-8" } }
     );
   }
