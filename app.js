@@ -137,17 +137,42 @@
     });
   }
 
-  async function bootEngine() {
-    if (typeof BareMux === "undefined") {
-      throw new Error("The BareMux script didn't load from /baremux/index.js.");
+  // Wipe Scramjet's saved settings and workers so a half-built database can't block startup.
+  async function repairStorage() {
+    try {
+      for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
+    } catch {
+      /* ignore */
     }
-    if (typeof $scramjetLoadController !== "function") {
-      throw new Error("Scramjet didn't load from /scram/scramjet.all.js. Check the server log.");
+    let names = ["$scramjet"];
+    try {
+      if (indexedDB.databases) {
+        const all = await indexedDB.databases();
+        names = names.concat(all.map((d) => d.name).filter((n) => n && /scramjet/i.test(n)));
+      }
+    } catch {
+      /* ignore */
     }
-    if (!("serviceWorker" in navigator)) {
-      throw new Error("This browser blocks service workers. Use https and a normal (non-private) window.");
+    for (const name of new Set(names)) {
+      await new Promise((done) => {
+        const timer = setTimeout(done, 3000);
+        const finish = () => {
+          clearTimeout(timer);
+          done();
+        };
+        try {
+          const req = indexedDB.deleteDatabase(name);
+          req.onsuccess = finish;
+          req.onerror = finish;
+          req.onblocked = finish;
+        } catch {
+          finish();
+        }
+      });
     }
+  }
 
+  async function startEngine() {
     // Remove the old Ultraviolet worker left behind by earlier versions of Emnity.
     try {
       for (const r of await navigator.serviceWorker.getRegistrations()) {
@@ -182,6 +207,28 @@
       15000,
       "Scramjet didn't finish starting. Clear this site's data and reload."
     );
+  }
+
+  async function bootEngine() {
+    if (typeof BareMux === "undefined") {
+      throw new Error("The BareMux script didn't load from /baremux/index.js.");
+    }
+    if (typeof $scramjetLoadController !== "function") {
+      throw new Error("Scramjet didn't load from /scram/scramjet.all.js. Check the server log.");
+    }
+    if (!("serviceWorker" in navigator)) {
+      throw new Error("This browser blocks service workers. Use https and a normal (non-private) window.");
+    }
+    try {
+      await startEngine();
+    } catch (err) {
+      const msg = String((err && err.message) || err);
+      // A broken saved database is fixable: wipe it once and try again.
+      if (!/object store|IDBDatabase|transaction|didn't finish|didn't respond/i.test(msg)) throw err;
+      console.warn("[emnity] repairing saved engine data, then retrying:", msg);
+      await repairStorage();
+      await startEngine();
+    }
   }
 
   function boot() {
