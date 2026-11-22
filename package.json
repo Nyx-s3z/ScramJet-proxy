@@ -1,0 +1,22 @@
+{
+  "name": "emnity",
+  "version": "3.0.0",
+  "description": "Emnity - tabbed web proxy built on Scramjet",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "license": "AGPL-3.0-or-later",
+  "dependencies": {
+    "@mercuryworkshop/bare-mux": "^2.1.9",
+    "@mercuryworkshop/libcurl-transport": "^1.5.2",
+    "@mercuryworkshop/scramjet": "1.1.0",
+    "@mercuryworkshop/wisp-js": "^0.4.1",
+    "express": "^5.2.1",
+    "ws": "^8.18.3"
+  }
+}
